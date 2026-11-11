@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Amenity Preference Elicitation Grid</title>
+<style>
+  :root { color-scheme: light; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  #root { min-height: 100%; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useCallback } = React;
+
+
+const C = {
+  paper:      "#FDFAF3",
+  ink:        "#1A1208",
+  muted:      "#6B6150",
+  border:     "#C8BFA8",
+  borderDk:   "#8C7D60",
+  headerBg:   "#EDE8DC",
+  teal:       "#0D6E6E",
+  tealLt:     "#C8EEEE",
+  tealText:   "#063E3E",
+  amber:      "#B85C00",
+  amberLt:    "#FFE8C8",
+  amberText:  "#7A3A00",
+  cta:        "#1A5C3A",
+  ctaHov:     "#134530",
+  warn:       "#9B1C1C",
+  warnLt:     "#FDEAEA",
+  chip:       "#EDE8DC",
+};
+
+const DEFAULT_ITEMS = [
+  { name: "Full Kitchen",          price: "100"  },
+  { name: "Standard Patio/Balcony",price: "0"    },
+  { name: "Common Area Wi-Fi",     price: "0"    },
+  { name: "Dressing Room",         price: "50"   },
+  { name: "Lake/Pond View",        price: "50"   },
+  { name: "Direct Outdoor Access", price: "75"   },
+  { name: "Fireplace",             price: "75"   },
+  { name: "Premium Walk-in Tub",   price: "50"   },
+  { name: "Same Floor as Dining",  price: "100"  },
+  { name: "Far from Center",       price: "-75"  },
+];
+
+const css = `
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;600&display=swap');
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: ${C.paper}; font-family: 'Inter', sans-serif; color: ${C.ink}; min-height: 100vh; }
+
+.setup { max-width: 700px; margin: 0 auto; padding: 40px 24px 60px; }
+.app-title { font-family: 'Libre Baskerville', serif; font-size: 22px; line-height: 1.3; margin-bottom: 4px; }
+.app-sub   { font-size: 12px; color: ${C.muted}; margin-bottom: 20px; line-height: 1.6; }
+
+.preset-notice { font-size: 12px; line-height: 1.6; padding: 10px 14px; background: #E8F5ED;
+  border-left: 3px solid ${C.cta}; border-radius: 5px; margin-bottom: 22px; color: ${C.ink}; }
+.preset-notice strong { color: ${C.cta}; }
+
+.mode-row  { display: flex; gap: 0; border: 1.5px solid ${C.borderDk}; border-radius: 6px; overflow: hidden; margin-bottom: 16px; }
+.mode-btn  { flex: 1; padding: 11px 8px; font-size: 12px; font-weight: 500; cursor: pointer;
+  background: ${C.paper}; border: none; color: ${C.muted}; line-height: 1.4; text-align: center;
+  border-right: 1px solid ${C.border}; transition: background .15s, color .15s; }
+.mode-btn:last-child { border-right: none; }
+.mode-btn.on { background: ${C.cta}; color: #fff; font-weight: 600; }
+.mode-btn:hover:not(.on) { background: ${C.headerBg}; color: ${C.ink}; }
+
+.mode-info { font-size: 12px; color: ${C.ink}; line-height: 1.7; padding: 12px 14px;
+  background: ${C.headerBg}; border-radius: 5px; margin-bottom: 24px;
+  border-left: 3px solid ${C.cta}; }
+.mode-info strong { color: ${C.cta}; }
+.mode-info em { font-style: italic; }
+
+.col-heads { display: flex; gap: 8px; padding: 0 0 4px; margin-bottom: 4px; }
+.col-head  { font-size: 10px; font-weight: 600; color: ${C.muted}; text-transform: uppercase; letter-spacing: .4px; }
+
+.item-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+.item-row  { display: flex; gap: 8px; align-items: center; }
+.idx-lbl   { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: ${C.muted};
+  width: 22px; text-align: right; flex-shrink: 0; }
+.name-inp  { flex: 1; padding: 8px 10px; border: 1.5px solid ${C.border}; border-radius: 5px;
+  font-size: 13px; background: ${C.paper}; color: ${C.ink}; outline: none; font-family: inherit; }
+.name-inp:focus { border-color: ${C.cta}; box-shadow: 0 0 0 3px #C8EDD8; }
+.price-sym { font-size: 12px; color: ${C.muted}; flex-shrink: 0; }
+.price-inp { width: 84px; padding: 8px 8px; border: 1.5px solid ${C.border}; border-radius: 5px;
+  font-size: 13px; font-family: 'JetBrains Mono', monospace; background: ${C.paper};
+  color: ${C.ink}; outline: none; text-align: right; }
+.price-inp:focus { border-color: ${C.cta}; box-shadow: 0 0 0 3px #C8EDD8; }
+.del-btn   { width: 28px; height: 28px; border: 1.5px solid ${C.border}; border-radius: 4px;
+  background: transparent; cursor: pointer; color: ${C.muted}; font-size: 16px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.del-btn:hover { border-color: ${C.warn}; color: ${C.warn}; background: ${C.warnLt}; }
+
+.btn-row   { display: flex; gap: 10px; margin-bottom: 18px; }
+.add-btn   { flex: 1; padding: 9px; border: 1.5px dashed ${C.borderDk}; border-radius: 5px;
+  background: transparent; cursor: pointer; font-size: 13px; color: ${C.muted}; }
+.add-btn:hover { background: ${C.headerBg}; color: ${C.ink}; }
+.reset-preset-btn { padding: 9px 14px; border: 1.5px solid ${C.border}; border-radius: 5px;
+  background: transparent; cursor: pointer; font-size: 12px; color: ${C.muted}; white-space: nowrap; }
+.reset-preset-btn:hover { background: ${C.headerBg}; color: ${C.ink}; }
+
+.go-btn    { width: 100%; padding: 14px; background: ${C.cta}; color: #fff; border: none;
+  border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; letter-spacing: .2px; }
+.go-btn:hover    { background: ${C.ctaHov}; }
+.go-btn:disabled { opacity: .35; cursor: not-allowed; }
+.err-txt   { font-size: 12px; color: ${C.warn}; margin-bottom: 10px; }
+
+/* GRID PAGE */
+.gpage  { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+.ghead  { display: flex; justify-content: space-between; align-items: flex-start;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.gtitle { font-family: 'Libre Baskerville', serif; font-size: 19px; }
+.gmeta  { font-size: 12px; color: ${C.muted}; margin-top: 3px; }
+.back-btn { padding: 7px 14px; border: 1.5px solid ${C.border}; border-radius: 5px;
+  background: transparent; cursor: pointer; font-size: 12px; color: ${C.muted}; }
+.back-btn:hover { border-color: ${C.warn}; color: ${C.warn}; }
+
+.prog-track { height: 5px; background: ${C.border}; border-radius: 3px; margin-bottom: 20px; overflow: hidden; }
+.prog-fill  { height: 100%; background: ${C.cta}; transition: width .3s ease; border-radius: 3px; }
+
+.instr { font-size: 12px; color: ${C.ink}; line-height: 1.6; margin-bottom: 18px;
+  padding: 10px 12px; background: ${C.headerBg}; border-radius: 5px; }
+.instr strong { color: ${C.ink}; }
+
+/* TRIANGULAR GRID */
+.grid-scroll { overflow-x: auto; margin-bottom: 10px; }
+table.tgrid { border-collapse: collapse; }
+table.tgrid td, table.tgrid th { padding: 0; }
+
+.col-lbl-cell  { padding: 0 2px 6px; text-align: center; vertical-align: bottom; min-width: 46px; }
+.col-lbl-inner { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.col-num  { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+  color: ${C.tealText}; background: ${C.tealLt}; border: 2px solid ${C.teal}; border-radius: 50%;
+  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+.col-name { font-size: 9px; color: ${C.muted}; writing-mode: vertical-rl;
+  text-orientation: mixed; transform: rotate(180deg);
+  max-height: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-price { font-size: 9px; color: ${C.muted}; font-family: 'JetBrains Mono', monospace; }
+
+.row-lbl-cell  { padding: 2px 4px 2px 10px; text-align: left; vertical-align: middle; }
+.row-lbl-inner { display: flex; align-items: center; gap: 6px; }
+.row-num  { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+  color: ${C.amberText}; background: ${C.amberLt}; border: 2px solid ${C.amber}; border-radius: 50%;
+  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.row-name  { font-size: 11px; color: ${C.ink}; white-space: nowrap; }
+.row-price { font-size: 10px; color: ${C.muted}; font-family: 'JetBrains Mono', monospace; }
+
+.pcell    { width: 46px; height: 46px; position: relative; vertical-align: middle; }
+.pcell-in { width: 46px; height: 46px; display: flex; flex-direction: column;
+  border: 1.5px solid ${C.border}; overflow: hidden; border-radius: 3px; }
+
+.half     { flex: 1; display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background .1s; user-select: none; color: ${C.muted}; }
+.half-top { border-bottom: 1px solid ${C.border}; }
+.half-top:hover { background: ${C.tealLt}; color: ${C.tealText}; }
+.half-bot:hover { background: ${C.amberLt}; color: ${C.amberText}; }
+
+.pcell.win-top .pcell-in { border-color: ${C.teal}; border-width: 2px; }
+.pcell.win-top .half-top { background: ${C.teal}; color: #fff; font-weight: 700; }
+.pcell.win-top .half-bot { background: #E0F5F5; color: ${C.muted}; }
+.pcell.win-bot .pcell-in { border-color: ${C.amber}; border-width: 2px; }
+.pcell.win-bot .half-bot { background: ${C.amber}; color: #fff; font-weight: 700; }
+.pcell.win-bot .half-top { background: #FFF0E0; color: ${C.muted}; }
+
+.empty-cell { width: 46px; height: 46px; }
+
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 11px; color: ${C.muted}; margin-top: 8px; }
+.leg-dot { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+
+/* RESULTS */
+.results   { max-width: 780px; margin: 28px auto 0; }
+.res-title { font-family: 'Libre Baskerville', serif; font-size: 16px; margin-bottom: 14px;
+  padding-bottom: 8px; border-bottom: 2px solid ${C.borderDk}; }
+.tie-box   { font-size: 12px; color: ${C.warn}; background: ${C.warnLt}; padding: 10px 14px;
+  border-radius: 5px; margin-bottom: 14px; border-left: 3px solid ${C.warn}; }
+
+.rtable    { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rtable th { text-align: left; padding: 7px 10px; font-size: 10px; font-weight: 600;
+  color: ${C.muted}; background: ${C.headerBg}; border-bottom: 1.5px solid ${C.borderDk};
+  text-transform: uppercase; letter-spacing: .6px; }
+.rtable td { padding: 9px 10px; border-bottom: 1px solid ${C.border}; vertical-align: middle; }
+.rtable tr:hover td { background: ${C.headerBg}; }
+
+.rk-num  { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 17px; color: ${C.cta}; }
+.rk-name { font-weight: 500; }
+.rk-cnt  { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: ${C.muted}; }
+.rk-tiebreak { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: ${C.cta}; font-weight: 600; }
+
+.pchip     { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px;
+  font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+.pchip-pos { background: #C8EECC; color: #0A4D0A; }
+.pchip-neg { background: ${C.warnLt}; color: ${C.warn}; }
+.pchip-zer { background: ${C.chip}; color: ${C.muted}; }
+.pchip-non { color: ${C.muted}; font-style: italic; font-size: 12px; font-family: inherit; }
+
+.cchip     { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.cchip-ok  { background: #C8EECC; color: #0A4D0A; }
+.cchip-bad { background: ${C.warnLt}; color: ${C.warn}; }
+.cchip-na  { background: ${C.chip}; color: ${C.muted}; }
+
+.viol-box  { margin-top: 14px; padding: 12px 14px; background: ${C.warnLt}; border-radius: 5px;
+  font-size: 12px; line-height: 1.8; border-left: 3px solid ${C.warn}; }
+
+.blind-entry   { margin-bottom: 20px; padding: 16px; background: ${C.headerBg};
+  border-radius: 6px; border: 1.5px solid ${C.border}; }
+.blind-entry h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.blind-entry p  { font-size: 12px; color: ${C.muted}; line-height: 1.6; margin-bottom: 14px; }
+.blind-row { display: flex; gap: 10px; align-items: center; margin-bottom: 7px; }
+.blind-row .rk-num  { width: 28px; flex-shrink: 0; }
+.blind-row .rk-name { flex: 1; font-size: 13px; }
+
+.interp-note { font-size: 11px; color: ${C.muted}; margin-top: 16px; padding: 10px 12px;
+  background: ${C.headerBg}; border-radius: 5px; line-height: 1.7; }
+.incomplete-note { font-size: 12px; color: ${C.muted}; font-style: italic; margin-top: 10px; }
+`;
+
+/* ── helpers ── */
+const pairKey    = (a, b) => `${Math.min(a,b)}_${Math.max(a,b)}`;
+const totalPairs = n => (n * (n - 1)) / 2;
+
+function computeRanking(items, sel) {
+  const n = items.length;
+  const cnt = new Array(n).fill(0);
+  Object.values(sel).forEach(w => { if (w !== undefined) cnt[w]++; });
+
+  // Tie-break: among items sharing the same raw count, the winner of each
+  // direct head-to-head comparison receives a +0.5 adjustment to its score.
+  // This resolves pairwise ties using data already captured in the grid,
+  // and generalises to larger tied groups (each head-to-head win is worth
+  // half a point). A tie only remains in the final ranking if the tied
+  // items' head-to-head results form a non-transitive cycle.
+  const score = cnt.map(c => c);
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (cnt[i] === cnt[j]) {
+        const w = sel[pairKey(i, j)];
+        if (w === i) score[i] += 0.5;
+        else if (w === j) score[j] += 0.5;
+      }
+    }
+  }
+
+  const arr = items.map((it, i) => ({ ...it, idx: i, count: cnt[i], score: score[i] }));
+  arr.sort((a, b) => b.score - a.score);
+  let rank = 1;
+  arr.forEach((r, i) => {
+    if (i > 0 && r.score === arr[i - 1].score) r.rank = arr[i - 1].rank;
+    else r.rank = rank;
+    rank++;
+  });
+  return arr;
+}
+
+function findViolations(ranked) {
+  const out = [];
+  for (let i = 0; i < ranked.length; i++) {
+    for (let j = i + 1; j < ranked.length; j++) {
+      if (ranked[i].rank === ranked[j].rank) continue;
+      const pi = parseFloat(ranked[i].price), pj = parseFloat(ranked[j].price);
+      if (isNaN(pi) || isNaN(pj)) continue;
+      if (pi < pj) out.push({ preferred: ranked[i], overpriced: ranked[j] });
+    }
+  }
+  return out;
+}
+
+function PriceChip({ val }) {
+  if (val === "" || val === undefined || val === null)
+    return <span className="pchip-non">—</span>;
+  const v = parseFloat(val);
+  if (isNaN(v)) return <span className="pchip-non">—</span>;
+  const cls = v > 0 ? "pchip pchip-pos" : v < 0 ? "pchip pchip-neg" : "pchip pchip-zer";
+  return <span className={cls}>{v > 0 ? `+$${v}` : v < 0 ? `-$${Math.abs(v)}` : "$0"}</span>;
+}
+
+/* ── main ── */
+function App() {
+  const [phase,   setPhase]   = useState("setup");
+  const [mode,    setMode]    = useState("anchored");
+  const [items,   setItems]   = useState(DEFAULT_ITEMS.map(it => ({ ...it })));
+  const [sel,     setSel]     = useState({});
+  const [frozen,  setFrozen]  = useState([]);
+  const [fMode,   setFMode]   = useState("anchored");
+  const [bPrices, setBPrices] = useState([]);
+
+  const updItem = (i, f, v) =>
+    setItems(p => p.map((it, idx) => idx === i ? { ...it, [f]: v } : it));
+  const addItem  = () => setItems(p => [...p, { name: "", price: "" }]);
+  const delItem  = i  => setItems(p => p.filter((_, idx) => idx !== i));
+  const resetDef = () => setItems(DEFAULT_ITEMS.map(it => ({ ...it })));
+
+  const validItems = items.filter(it => it.name.trim());
+  const canStart   = validItems.length >= 2;
+
+  const startGrid = () => {
+    const f = items.filter(it => it.name.trim());
+    setFrozen(f);
+    setFMode(mode);
+    setBPrices(f.map(() => ""));
+    setSel({});
+    setPhase("grid");
+  };
+
+  /* grid */
+  const n        = frozen.length;
+  const answered = Object.keys(sel).length;
+  const total    = totalPairs(n);
+  const done     = answered === total;
+
+  const choose = useCallback((colIdx, rowIdx, winner) => {
+    const k = pairKey(colIdx, rowIdx);
+    setSel(p => {
+      if (p[k] === winner) { const q = { ...p }; delete q[k]; return q; }
+      return { ...p, [k]: winner };
+    });
+  }, []);
+
+  const ranked = computeRanking(frozen, sel);
+  const hasTies = ranked.some((r, i) => i > 0 && r.rank === ranked[i - 1].rank);
+
+  const rankedWP = ranked.map(r => ({
+    ...r,
+    price: fMode === "anchored" ? r.price : (bPrices[r.idx] ?? ""),
+  }));
+  const violations   = done ? findViolations(rankedWP) : [];
+  const showConsist  = done && rankedWP.some(r => r.price !== "" && r.price !== undefined);
+  const overpricedIdx = new Set(violations.map(v => v.overpriced.idx));
+
+  /* ── SETUP ── */
+  if (phase === "setup") return (
+    <>
+      <style>{css}</style>
+      <div className="setup">
+        <div className="app-title">Amenity Preference Elicitation Grid</div>
+        <div className="app-sub">
+          Karaaslan (2024) · Interactive pairwise comparison instrument for value-based amenity pricing.
+        </div>
+
+        <div className="preset-notice">
+          <strong>Preloaded:</strong> The 10 amenities from the empirical illustration in Karaaslan (2024), §5, with their current corporate list prices. Edit names and prices freely, delete rows, or add new ones before starting.
+        </div>
+
+        <div className="mode-row">
+          <button className={`mode-btn${mode==="anchored"?" on":""}`} onClick={() => setMode("anchored")}>
+            Mode A — Price-Anchored<br /><span style={{fontWeight:400,fontSize:11}}>Prices visible during ranking</span>
+          </button>
+          <button className={`mode-btn${mode==="blind"?" on":""}`} onClick={() => setMode("blind")}>
+            Mode B — Blind Elicitation<br /><span style={{fontWeight:400,fontSize:11}}>Prices revealed after ranking</span>
+          </button>
+        </div>
+
+        {mode === "anchored"
+          ? <div className="mode-info"><strong>Mode A (Price-Anchored):</strong> Current list prices are shown alongside amenity names during pairwise comparison, eliciting price-aware preferences. Suitable when customers are already informed of pricing. The ranking may be subject to anchoring effects (Tversky & Kahneman, 1974).</div>
+          : <div className="mode-info"><strong>Mode B (Blind Elicitation):</strong> Prices are hidden during comparison and entered only after the ranking is finalised. This yields uninflected ordinal preferences free from price anchoring. The post-ranking price entry then enables an immediate <em>consistency audit</em>: any amenity priced higher than a more-preferred alternative constitutes a revenue-suboptimal misalignment (Karaaslan, 2024).</div>
+        }
+
+        {/* Column headers */}
+        <div className="col-heads" style={{paddingLeft:30}}>
+          <div className="col-head" style={{flex:1}}>Amenity name</div>
+          {mode === "anchored" && <div className="col-head" style={{width:84, textAlign:"right"}}>Price ($)</div>}
+          <div style={{width:36}} />
+        </div>
+
+        <div className="item-list">
+          {items.map((it, i) => (
+            <div className="item-row" key={i}>
+              <span className="idx-lbl">{i + 1}</span>
+              <input className="name-inp" placeholder={`Amenity ${i+1}`} value={it.name}
+                onChange={e => updItem(i, "name", e.target.value)} />
+              {mode === "anchored" && <>
+                <span className="price-sym">$</span>
+                <input className="price-inp" placeholder="0" type="number" value={it.price}
+                  onChange={e => updItem(i, "price", e.target.value)} />
+              </>}
+              {items.length > 2 &&
+                <button className="del-btn" onClick={() => delItem(i)}>×</button>}
+            </div>
+          ))}
+        </div>
+
+        <div className="btn-row">
+          <button className="add-btn" onClick={addItem}>＋ Add amenity</button>
+          <button className="reset-preset-btn" onClick={resetDef}>↺ Reset to defaults</button>
+        </div>
+
+        {!canStart && <div className="err-txt">Enter at least 2 amenity names to begin.</div>}
+        <button className="go-btn" disabled={!canStart} onClick={startGrid}>
+          Begin Pairwise Comparison →
+        </button>
+      </div>
+    </>
+  );
+
+  /* ── GRID ── */
+  return (
+    <>
+      <style>{css}</style>
+      <div className="gpage">
+        <div className="ghead">
+          <div>
+            <div className="gtitle">Pairwise Comparison Matrix</div>
+            <div className="gmeta">
+              {answered} / {total} pairs answered
+              {fMode === "anchored" ? " · Mode A (Price-Anchored)" : " · Mode B (Blind Elicitation)"}
+            </div>
+          </div>
+          <button className="back-btn" onClick={() => setPhase("setup")}>← Edit amenities</button>
+        </div>
+
+        <div className="prog-track">
+          <div className="prog-fill" style={{width:`${(answered/total)*100}%`}} />
+        </div>
+
+        <div className="instr">
+          In each cell, click the <strong style={{color:C.teal}}>top number</strong> (column item) or the <strong style={{color:C.amber}}>bottom number</strong> (row item) to indicate which you prefer — all other things equal.&nbsp;
+          <strong>Click the same number again to deselect.</strong>
+        </div>
+
+        <div className="grid-scroll">
+          <table className="tgrid">
+            <thead>
+              <tr>
+                {frozen.slice(0, n - 1).map((it, i) => (
+                  <th key={i} className="col-lbl-cell">
+                    <div className="col-lbl-inner">
+                      <div className="col-num">{i + 1}</div>
+                      <div className="col-name" title={it.name}>{it.name}</div>
+                      {fMode === "anchored" && it.price !== "" &&
+                        <div className="col-price">${it.price}</div>}
+                    </div>
+                  </th>
+                ))}
+                <th style={{width:20}} />
+              </tr>
+            </thead>
+            <tbody>
+              {frozen.slice(1).map((rowItem, jj) => {
+                const j = jj + 1;
+                return (
+                  <tr key={j}>
+                    {Array.from({ length: j }, (_, i) => {
+                      const k      = pairKey(i, j);
+                      const w      = sel[k];
+                      const winTop = w === i;
+                      const winBot = w === j;
+                      const colIt  = frozen[i];
+                      return (
+                        <td key={i} className={`pcell${winTop?" win-top":""}${winBot?" win-bot":""}`}>
+                          <div className="pcell-in">
+                            <div className="half half-top"
+                              title={`Prefer ${i+1}: ${colIt.name}${fMode==="anchored"&&colIt.price?` ($${colIt.price})`:""}`}
+                              onClick={() => choose(i, j, i)}>
+                              {i + 1}
+                            </div>
+                            <div className="half half-bot"
+                              title={`Prefer ${j+1}: ${rowItem.name}${fMode==="anchored"&&rowItem.price?` ($${rowItem.price})`:""}`}
+                              onClick={() => choose(i, j, j)}>
+                              {j + 1}
+                            </div>
+                          </div>
+                        </td>
+                      );
+                    })}
+                    {Array.from({ length: n - 1 - j }, (_, k) => (
+                      <td key={`sp${k}`} className="empty-cell" />
+                    ))}
+                    <td className="row-lbl-cell">
+                      <div className="row-lbl-inner">
+                        <div className="row-num">{j + 1}</div>
+                        <span className="row-name" title={rowItem.name}>{rowItem.name}</span>
+                        {fMode === "anchored" && rowItem.price !== "" &&
+                          <span className="row-price">${rowItem.price}</span>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="legend">
+          <span><span className="leg-dot" style={{background:C.teal}} />Column item chosen</span>
+          <span><span className="leg-dot" style={{background:C.amber}} />Row item chosen</span>
+          <span style={{fontStyle:"italic"}}>Click same number to deselect</span>
+        </div>
+
+        {/* RESULTS */}
+        <div className="results">
+          <div className="res-title">
+            {done ? "Preference Ranking" : `Partial Ranking (${answered}/${total} pairs answered)`}
+          </div>
+
+          {hasTies && done && (
+            <div className="tie-box">
+              ⚠ Unresolved tie detected. Items tied on raw count were checked against their direct head-to-head result (worth +0.5 to the winner), but a tie remains — this indicates a non-transitive cycle among the tied items (e.g. A preferred over B, B over C, C over A) that cannot be resolved by pairwise comparison alone.
+            </div>
+          )}
+
+          {fMode === "blind" && done && (
+            <div className="blind-entry">
+              <h3>Step 2 — Enter Corporate Prices for Consistency Audit</h3>
+              <p>Preferences recorded without price anchoring. Enter current list prices below; negative values for discount attributes. Inconsistencies will be flagged immediately.</p>
+              {ranked.map(r => (
+                <div className="blind-row" key={r.idx}>
+                  <span className="rk-num">{r.rank}</span>
+                  <span className="rk-name">{r.name}</span>
+                  <span className="price-sym">$</span>
+                  <input className="price-inp" placeholder="0" type="number"
+                    value={bPrices[r.idx] ?? ""}
+                    onChange={e => setBPrices(p => p.map((v, i) => i === r.idx ? e.target.value : v))} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <table className="rtable">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Amenity</th>
+                <th>Times Chosen</th>
+                <th>Price</th>
+                {showConsist && <th>Consistency</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {rankedWP.map((r, i) => {
+                const isOP = overpricedIdx.has(r.idx);
+                let cchip = null;
+                if (showConsist) {
+                  if (!r.price && r.price !== "0" && r.price !== 0)
+                    cchip = <span className="cchip cchip-na">No price</span>;
+                  else if (i === 0)
+                    cchip = <span className="cchip cchip-na">—</span>;
+                  else if (isOP)
+                    cchip = <span className="cchip cchip-bad">⚠ Overpriced</span>;
+                  else
+                    cchip = <span className="cchip cchip-ok">✓ Consistent</span>;
+                }
+                return (
+                  <tr key={r.idx}>
+                    <td><span className="rk-num">{r.rank}</span></td>
+                    <td><span className="rk-name">{r.name}</span></td>
+                    <td>
+                      <span className="rk-cnt">{r.count}</span>
+                      {r.score !== r.count &&
+                        <span className="rk-tiebreak" title="Tie broken by direct head-to-head comparison">
+                          {" "}+0.5 h2h
+                        </span>}
+                    </td>
+                    <td><PriceChip val={r.price} /></td>
+                    {showConsist && <td>{cchip}</td>}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {violations.length > 0 && (
+            <div className="viol-box">
+              <strong style={{color:C.warn}}>Pricing Inconsistencies Detected ({violations.length}):</strong>
+              {violations.map((v, i) => (
+                <div key={i} style={{marginTop:5, color:C.warn}}>
+                  · <strong>{v.overpriced.name}</strong> (rank {v.overpriced.rank}, less preferred) is priced higher than <strong>{v.preferred.name}</strong> (rank {v.preferred.rank}, more preferred) — revenue-suboptimal misalignment per Karaaslan (2024).
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!done && <div className="incomplete-note">Complete all {total} pairwise comparisons to finalise the ranking.</div>}
+
+          <div className="interp-note">
+            <strong>Interpretation:</strong> This ordinal ranking establishes a monotonicity constraint — higher-ranked amenities should not be priced below lower-ranked ones. It does not imply cardinal proportionality. Cardinal willingness-to-pay calibration requires supplementary methods (conjoint analysis, contingent valuation). See Karaaslan (2024), §4.2.
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
